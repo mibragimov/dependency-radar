@@ -32,6 +32,16 @@
       <section id="results" class="card hidden">
         <h2>Results</h2>
         <p id="meta"></p>
+        <div class="actions">
+          <label for="riskFilter">Filter by risk</label>
+          <select id="riskFilter">
+            <option value="all">All</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <span id="summary"></span>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>

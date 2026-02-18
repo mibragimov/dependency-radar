@@ -7,6 +7,10 @@ const metaEl = document.getElementById('meta');
 const saveSnapshotBtn = document.getElementById('saveSnapshotBtn');
 const snapshotNameEl = document.getElementById('snapshotName');
 const snapshotsEl = document.getElementById('snapshots');
+const riskFilterEl = document.getElementById('riskFilter');
+const summaryEl = document.getElementById('summary');
+
+let lastResults = [];
 
 const KEY = 'dependency-radar-snapshots-v1';
 
@@ -117,6 +121,35 @@ function riskPill(risk) {
   return `<span class="risk-pill ${cls}">${risk.toUpperCase()}</span>`;
 }
 
+function renderRows(items) {
+  rowsEl.innerHTML = '';
+  items.forEach(item => {
+    const row = document.getElementById('rowTemplate').content.firstElementChild.cloneNode(true);
+    row.querySelector('.pkg').textContent = item.name;
+    row.querySelector('.current').textContent = item.current;
+    row.querySelector('.latest').innerHTML = item.latest
+      ? `<a href="https://www.npmjs.com/package/${item.name}" target="_blank">${item.latest}</a>`
+      : 'unknown';
+    row.querySelector('.delta').textContent = item.delta;
+    row.querySelector('.risk').innerHTML = riskPill(item.risk);
+    row.querySelector('.clues').textContent = item.clues;
+    rowsEl.appendChild(row);
+  });
+
+  const counts = { high: 0, medium: 0, low: 0 };
+  lastResults.forEach(r => counts[r.risk] += 1);
+  summaryEl.textContent = `High: ${counts.high} • Medium: ${counts.medium} • Low: ${counts.low}`;
+}
+
+function applyFilter() {
+  const f = riskFilterEl.value;
+  if (f === 'all') {
+    renderRows(lastResults);
+    return;
+  }
+  renderRows(lastResults.filter(r => r.risk === f));
+}
+
 async function analyze() {
   rowsEl.innerHTML = '';
   let deps;
@@ -137,40 +170,43 @@ async function analyze() {
   metaEl.textContent = `Analyzing ${names.length} packages...`;
 
   let done = 0;
+  const results = [];
+
   for (const name of names) {
     const current = deps[name];
-    const row = document.getElementById('rowTemplate').content.firstElementChild.cloneNode(true);
-    row.querySelector('.pkg').textContent = name;
-    row.querySelector('.current').textContent = current;
-    row.querySelector('.latest').textContent = 'Loading...';
-    row.querySelector('.delta').textContent = '-';
-    row.querySelector('.risk').textContent = '-';
-    row.querySelector('.clues').textContent = '-';
-    rowsEl.appendChild(row);
-
     try {
       const npm = await fetchNpmMeta(name);
       const delta = semverDelta(current, npm.latest);
       const gh = await fetchGithubReleaseClues(npm.repo);
       const risk = scoreRisk(delta, gh.text);
-
-      row.querySelector('.latest').innerHTML = npm.latest
-        ? `<a href="https://www.npmjs.com/package/${name}" target="_blank">${npm.latest}</a>`
-        : 'unknown';
-      row.querySelector('.delta').textContent = delta;
-      row.querySelector('.risk').innerHTML = riskPill(risk);
-      row.querySelector('.clues').textContent = gh.clues.slice(0, 3).join('; ');
+      results.push({
+        name,
+        current,
+        latest: npm.latest,
+        delta,
+        risk,
+        clues: gh.clues.slice(0, 3).join('; ')
+      });
     } catch (e) {
-      row.querySelector('.latest').textContent = 'error';
-      row.querySelector('.delta').textContent = 'unknown';
-      row.querySelector('.risk').innerHTML = riskPill('medium');
-      row.querySelector('.clues').textContent = e.message;
+      results.push({
+        name,
+        current,
+        latest: 'error',
+        delta: 'unknown',
+        risk: 'medium',
+        clues: e.message
+      });
     }
 
     done += 1;
     metaEl.textContent = `Processed ${done}/${names.length} packages`;
   }
 
+  lastResults = results.sort((a, b) => {
+    const order = { high: 0, medium: 1, low: 2 };
+    return order[a.risk] - order[b.risk] || a.name.localeCompare(b.name);
+  });
+  applyFilter();
   metaEl.textContent = `Done. Analyzed ${names.length} packages.`;
 }
 
@@ -235,4 +271,5 @@ function saveSnapshot() {
 analyzeBtn.addEventListener('click', analyze);
 loadSampleBtn.addEventListener('click', loadSample);
 saveSnapshotBtn.addEventListener('click', saveSnapshot);
+riskFilterEl.addEventListener('change', applyFilter);
 renderSnapshots();
