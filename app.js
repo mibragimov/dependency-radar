@@ -150,6 +150,32 @@ function applyFilter() {
   renderRows(lastResults.filter(r => r.risk === f));
 }
 
+async function processPackage(name, current) {
+  try {
+    const npm = await fetchNpmMeta(name);
+    const delta = semverDelta(current, npm.latest);
+    const gh = await fetchGithubReleaseClues(npm.repo);
+    const risk = scoreRisk(delta, gh.text);
+    return {
+      name,
+      current,
+      latest: npm.latest,
+      delta,
+      risk,
+      clues: gh.clues.slice(0, 3).join('; ')
+    };
+  } catch (e) {
+    return {
+      name,
+      current,
+      latest: 'error',
+      delta: 'unknown',
+      risk: 'medium',
+      clues: e.message
+    };
+  }
+}
+
 async function analyze() {
   rowsEl.innerHTML = '';
   let deps;
@@ -160,7 +186,7 @@ async function analyze() {
     return;
   }
 
-  const names = Object.keys(deps);
+  const names = Object.keys(deps).slice(0, 60);
   if (!names.length) {
     alert('No dependencies/devDependencies found.');
     return;
@@ -169,37 +195,13 @@ async function analyze() {
   resultsEl.classList.remove('hidden');
   metaEl.textContent = `Analyzing ${names.length} packages...`;
 
-  let done = 0;
+  const BATCH = 6;
   const results = [];
-
-  for (const name of names) {
-    const current = deps[name];
-    try {
-      const npm = await fetchNpmMeta(name);
-      const delta = semverDelta(current, npm.latest);
-      const gh = await fetchGithubReleaseClues(npm.repo);
-      const risk = scoreRisk(delta, gh.text);
-      results.push({
-        name,
-        current,
-        latest: npm.latest,
-        delta,
-        risk,
-        clues: gh.clues.slice(0, 3).join('; ')
-      });
-    } catch (e) {
-      results.push({
-        name,
-        current,
-        latest: 'error',
-        delta: 'unknown',
-        risk: 'medium',
-        clues: e.message
-      });
-    }
-
-    done += 1;
-    metaEl.textContent = `Processed ${done}/${names.length} packages`;
+  for (let i = 0; i < names.length; i += BATCH) {
+    const chunk = names.slice(i, i + BATCH);
+    const chunkResults = await Promise.all(chunk.map((name) => processPackage(name, deps[name])));
+    results.push(...chunkResults);
+    metaEl.textContent = `Processed ${Math.min(i + BATCH, names.length)}/${names.length} packages`;
   }
 
   lastResults = results.sort((a, b) => {
