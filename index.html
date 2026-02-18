@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dependency Radar</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Dependency Radar</h1>
+      <p class="sub">Paste a <code>package.json</code> and get upgrade risk signals from npm + GitHub release notes.</p>
+
+      <section class="card">
+        <label for="pkgJson">package.json contents</label>
+        <textarea id="pkgJson" rows="14" placeholder='{"dependencies":{"react":"^18.2.0"}}'></textarea>
+        <div class="actions">
+          <button id="analyzeBtn">Analyze dependencies</button>
+          <button id="loadSampleBtn" class="secondary">Load sample</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Saved snapshots</h2>
+        <div class="actions">
+          <input id="snapshotName" placeholder="Snapshot name (e.g. client-web-feb)" />
+          <button id="saveSnapshotBtn" class="secondary">Save snapshot</button>
+        </div>
+        <ul id="snapshots"></ul>
+      </section>
+
+      <section id="results" class="card hidden">
+        <h2>Results</h2>
+        <p id="meta"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Package</th>
+                <th>Current</th>
+                <th>Latest</th>
+                <th>Delta</th>
+                <th>Risk</th>
+                <th>Release clues</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <template id="rowTemplate">
+      <tr>
+        <td class="pkg"></td>
+        <td class="current"></td>
+        <td class="latest"></td>
+        <td class="delta"></td>
+        <td class="risk"></td>
+        <td class="clues"></td>
+      </tr>
+    </template>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
