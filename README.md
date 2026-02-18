@@ -42,4 +42,4 @@ Use `sample-package.json` for a quick test payload.
 
 ## Live demo
 
-Live URL: TBD
+Live URL: https://mibragimov.github.io/dependency-radar/
